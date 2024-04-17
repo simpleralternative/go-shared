@@ -14,7 +14,7 @@ import "context"
 //
 // Examples are provided in the tests.
 func Stream[T any](
-	src func(context.Context, chan<- T),
+	src func(ctx context.Context, output chan<- T),
 	opts ...Option,
 ) <-chan T {
 	options := &Options{
