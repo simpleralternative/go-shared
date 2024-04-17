@@ -1,16 +1,26 @@
 package stream
 
-// Distribute standardizes the fan-out case, where a single producer generates
-// data to be handled by multiple concurrent downstream processes.
-func Distribute[T any](input <-chan T, count int) []<-chan T {
-	outputs := make([]<-chan T, count)
+import "context"
 
-	for i := range count {
-		outputs[i] = Stream(func(output chan<- T) {
+// Distribute standardizes the fan-out case, where a single producer generates
+// data to be handled by channelCount concurrent downstream processes.
+func Distribute[T any](
+	input <-chan T,
+	channelCount int,
+	opts ...Option,
+) []<-chan T {
+	outputs := make([]<-chan T, channelCount)
+
+	for i := range channelCount {
+		outputs[i] = Stream(func(ctx context.Context, output chan<- T) {
 			for value := range input {
-				output <- value
+				select {
+				case <-ctx.Done():
+					return
+				case output <- value:
+				}
 			}
-		})
+		}, opts...)
 	}
 
 	return outputs

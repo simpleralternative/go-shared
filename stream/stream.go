@@ -1,5 +1,7 @@
 package stream
 
+import "context"
+
 // Stream is a convenience function that performs the basic channel ceremonies
 // for a standard producer-consumer paradigm.
 //
@@ -11,12 +13,23 @@ package stream
 // consumers can drain the channel as normal.
 //
 // Examples are provided in the tests.
-func Stream[T any](src func(chan<- T)) <-chan T {
-	output := make(chan T)
+func Stream[T any](
+	src func(context.Context, chan<- T),
+	opts ...Option,
+) <-chan T {
+	options := &Options{
+		ctx:        context.Background(),
+		bufferSize: defaultBufferSize,
+	}
+	for _, opt := range opts {
+		opt(options)
+	}
+
+	output := make(chan T, options.bufferSize)
 
 	go func() {
 		defer close(output)
-		src(output)
+		src(options.ctx, output)
 	}()
 
 	return output
