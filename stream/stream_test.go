@@ -8,7 +8,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func validateChannel[T any](t *testing.T, expected T, okay bool, src <-chan T) {
+func validateChannel[T any](
+	t *testing.T,
+	expected T,
+	okay bool,
+	src <-chan T,
+) {
 	actual, ok := <-src
 	require.Equal(t, okay, ok)
 	require.Equal(t, expected, actual)
@@ -16,7 +21,7 @@ func validateChannel[T any](t *testing.T, expected T, okay bool, src <-chan T) {
 
 func TestStream(t *testing.T) {
 	t.Run("simple", func(t *testing.T) {
-		output := Stream(func(output chan<- int) {
+		output := Stream(func(_ context.Context, output chan<- int) {
 			output <- 1
 			output <- 2
 			output <- 3
@@ -29,7 +34,7 @@ func TestStream(t *testing.T) {
 	})
 
 	t.Run("loop", func(t *testing.T) {
-		output := Stream(func(output chan<- int) {
+		output := Stream(func(_ context.Context, output chan<- int) {
 			for i := range 4 {
 				output <- i
 			}
@@ -55,7 +60,7 @@ func TestStream(t *testing.T) {
 	// same signal, or just drain the rest of the queue and finish normally.
 	t.Run("cancelable", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
-		output := Stream(func(output chan<- int) {
+		output := Stream(func(ctx context.Context, output chan<- int) {
 			for i := range 10 {
 				select {
 				case <-ctx.Done():
@@ -63,7 +68,10 @@ func TestStream(t *testing.T) {
 				case output <- i:
 				}
 			}
-		})
+		},
+			WithContext(ctx),
+			WithBufferSize(0), // prevent preloading all the values
+		)
 
 		validateChannel(t, 0, true, output)
 		validateChannel(t, 1, true, output)
