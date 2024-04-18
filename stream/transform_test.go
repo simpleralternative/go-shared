@@ -26,7 +26,7 @@ func jsonMarshaller(_ context.Context, res *Result[[]Row]) *Result[[]byte] {
 	return NewResult(json.Marshal(res.Value))
 }
 
-func jsonUnmarshaller[T any](ctx context.Context, res *Result[[]byte]) *Result[T] {
+func jsonUnmarshaller[T any](_ context.Context, res *Result[[]byte]) *Result[T] {
 	data := *new(T)
 	err := json.Unmarshal(res.Value, &data)
 	return NewResult(data, err)
@@ -40,14 +40,14 @@ func gzipEncoder(_ context.Context, res *Result[[]byte]) *Result[[]byte] {
 	return NewResult(buf.Bytes(), err)
 }
 
-func gzipDecoder(ctx context.Context, res *Result[[]byte]) *Result[io.ReadCloser] {
+func gzipDecoder(_ context.Context, res *Result[[]byte]) *Result[io.ReadCloser] {
 	return NewResult[io.ReadCloser](gzip.NewReader(bytes.NewReader(res.Value)))
 }
 
 func fileReplacer(
 	filename string,
-) func(ctx context.Context, res *Result[[]byte]) *Result[int] {
-	return func(ctx context.Context, res *Result[[]byte]) *Result[int] {
+) func(context.Context, *Result[[]byte]) *Result[int] {
+	return func(_ context.Context, res *Result[[]byte]) *Result[int] {
 		if err := os.MkdirAll(path.Dir(filename), 0777); err != nil {
 			return NewResult(0, err)
 		}
