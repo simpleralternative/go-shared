@@ -18,7 +18,15 @@ func TestDistribute(t *testing.T) {
 			2,
 		)
 
-		actual := []int{<-channels[0], <-channels[1]}
+		var actual []int
+		for value := range channels[0] {
+			actual = append(actual, value)
+		}
+
+		for value := range channels[1] {
+			actual = append(actual, value)
+		}
+
 		require.ElementsMatch(t, []int{1, 2}, actual)
 	})
 
