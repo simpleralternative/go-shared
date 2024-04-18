@@ -24,3 +24,9 @@ distribute the contents across multiple channels and work on them in parallel.
 
 Parallel data sources or processes are often combined into a single process.
 The multiplexer consolidates multiple channels to a single channel.
+
+# transform
+The Transform function extends the paradigm by using pure channels to embrace
+Railway Oriented Programming. We can compose small, well-tested functions with
+automatic error handling. Any error simply bypasses the rest of the operations
+in a transform chain.
