@@ -17,7 +17,7 @@ func Stream[T any](
 	src func(ctx context.Context, output chan<- T),
 	opts ...Option,
 ) <-chan T {
-	options := &Options{
+	options := &options{
 		ctx:        context.Background(),
 		bufferSize: defaultBufferSize,
 	}
