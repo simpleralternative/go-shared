@@ -22,49 +22,49 @@ type Row struct {
 }
 
 // example library of transforms
-func jsonMarshaller(_ context.Context, res *Result[[]Row]) *Result[[]byte] {
-	return NewResult(json.Marshal(res.Value))
+func jsonMarshaller(_ context.Context, input []Row) ([]byte, error) {
+	return json.Marshal(input)
 }
 
-func jsonUnmarshaller[T any](_ context.Context, res *Result[[]byte]) *Result[T] {
+func jsonUnmarshaller[T any](_ context.Context, input []byte) (T, error) {
 	data := *new(T)
-	err := json.Unmarshal(res.Value, &data)
-	return NewResult(data, err)
+	err := json.Unmarshal(input, &data)
+	return data, err
 }
 
-func gzipEncoder(_ context.Context, res *Result[[]byte]) *Result[[]byte] {
+func gzipEncoder(_ context.Context, input []byte) ([]byte, error) {
 	var buf bytes.Buffer
 	writer := gzip.NewWriter(&buf)
-	_, err := writer.Write(res.Value)
+	_, err := writer.Write(input)
 	writer.Close()
-	return NewResult(buf.Bytes(), err)
+	return buf.Bytes(), err
 }
 
-func gzipDecoder(_ context.Context, res *Result[[]byte]) *Result[io.ReadCloser] {
-	return NewResult[io.ReadCloser](gzip.NewReader(bytes.NewReader(res.Value)))
+func gzipDecoder(_ context.Context, input []byte) (io.ReadCloser, error) {
+	return gzip.NewReader(bytes.NewReader(input))
 }
 
 func fileReplacer(
 	filename string,
-) func(context.Context, *Result[[]byte]) *Result[int] {
-	return func(_ context.Context, res *Result[[]byte]) *Result[int] {
+) func(_ context.Context, input []byte) (int, error) {
+	return func(_ context.Context, input []byte) (int, error) {
 		if err := os.MkdirAll(path.Dir(filename), 0777); err != nil {
-			return NewResult(0, err)
+			return 0, err
 		}
 
 		file, err := os.Create(filename)
 		if err != nil {
-			return NewResult(0, err)
+			return 0, err
 		}
 		defer file.Close()
 
-		return NewResult(file.Write(res.Value))
+		return file.Write(input)
 	}
 }
 
-func readAndClose(_ context.Context, res *Result[io.ReadCloser]) *Result[[]byte] {
-	defer res.Value.Close()
-	return NewResult(io.ReadAll(res.Value))
+func readAndClose(_ context.Context, input io.ReadCloser) ([]byte, error) {
+	defer input.Close()
+	return io.ReadAll(input)
 }
 
 // end library
@@ -120,35 +120,35 @@ func TestTransform(t *testing.T) {
 		})
 
 		marshalled := Transform(rows,
-			func(_ context.Context, res *Result[[]Row]) *Result[[]byte] {
-				return NewResult(json.Marshal(res.Value))
+			func(_ context.Context, input []Row) ([]byte, error) {
+				return json.Marshal(input)
 			})
 
 		compressed := Transform(marshalled,
-			func(ctx context.Context, res *Result[[]byte]) *Result[[]byte] {
+			func(ctx context.Context, input []byte) ([]byte, error) {
 				var buf bytes.Buffer
 				writer := gzip.NewWriter(&buf)
-				_, err := writer.Write(res.Value)
+				_, err := writer.Write(input)
 				writer.Close()
-				return NewResult(buf.Bytes(), err)
+				return buf.Bytes(), err
 			})
 
 		result := (<-Transform(compressed,
-			func(ctx context.Context, res *Result[[]byte]) *Result[int] {
+			func(ctx context.Context, input []byte) (int, error) {
 				// this could technically be done by returning a Result with a
 				// struct of a pair with the file reference and the data, but
 				// there's value in balance.
 				if err := os.MkdirAll(path.Dir(goodfile), 0777); err != nil {
-					return NewResult(0, err)
+					return 0, err
 				}
 
 				file, err := os.Create(goodfile)
 				if err != nil {
-					return NewResult(0, err)
+					return 0, err
 				}
 				defer file.Close()
 
-				return NewResult(file.Write(res.Value))
+				return file.Write(input)
 			}))
 
 		require.NoError(t, result.Error)
