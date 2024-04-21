@@ -12,7 +12,7 @@ import "context"
 // when the provided function completes, the output channel is closed and
 // consumers can drain the channel as normal.
 //
-// Examples are provided in the tests.
+// See the tests for examples and benchmarks.
 func Stream[T any](
 	src func(ctx context.Context, output chan<- T),
 	opts ...Option,
