@@ -98,7 +98,7 @@ func TestStream(t *testing.T) {
 // BenchmarkStream/Stream-sourced_unbuffered_channel-16  12515575   97.38 ns/op  0 B/op  0 allocs/op
 // BenchmarkStream/vanilla_10k_buffered_channel-16       58020580   20.79 ns/op  0 B/op  0 allocs/op
 // BenchmarkStream/Stream-sourced_channel-16             56895408   20.69 ns/op  0 B/op  0 allocs/op
-// BenchmarkStream/vanilla_channel_with_select-16        35377322   33.66 ns/op   0 B/op  0 allocs/op
+// BenchmarkStream/vanilla_channel_with_select-16        35377322   33.66 ns/op  0 B/op  0 allocs/op
 // BenchmarkStream/Stream-sourced_channel_with_select-16 35859765   33.93 ns/op  0 B/op  0 allocs/op
 // BenchmarkStream/vanilla_verifier-16                   11284138  104.1 ns/op   0 B/op  0 allocs/op
 func BenchmarkStream(b *testing.B) {
@@ -123,6 +123,7 @@ func BenchmarkStream(b *testing.B) {
 			}
 		}, WithBufferSize(0))
 
+		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			<-channel
 		}
@@ -187,6 +188,17 @@ func BenchmarkStream(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			<-channel
 		}
+	})
+
+	b.Run("nonconcurrent reference", func(b *testing.B) {
+		ct, sum := 0, int64(0)
+		for i := 0; i < b.N; i++ {
+			sum += func() int64 {
+				return int64(i)
+			}()
+			ct++
+		}
+		b.Log(ct, sum)
 	})
 
 	b.Run("vanilla verifier", func(b *testing.B) {
