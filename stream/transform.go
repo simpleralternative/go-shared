@@ -11,7 +11,7 @@ import (
 // composition of functions as demonstrated in the test cases.
 func Transform[T, U any](
 	input <-chan *Result[T],
-	step func(ctx context.Context, res *Result[T]) *Result[U],
+	transform func(ctx context.Context, input T) (U, error),
 	opts ...Option,
 ) <-chan *Result[U] {
 	return Stream(func(ctx context.Context, output chan<- *Result[U]) {
@@ -19,7 +19,7 @@ func Transform[T, U any](
 			if result.Error != nil {
 				output <- NewResult[U](*new(U), result.Error)
 			} else {
-				output <- step(ctx, result)
+				output <- NewResult[U](transform(ctx, result.Value))
 			}
 		}
 	}, opts...)

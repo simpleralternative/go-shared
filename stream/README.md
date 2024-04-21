@@ -30,3 +30,7 @@ The Transform function extends the paradigm by using pure channels to embrace
 Railway Oriented Programming. We can compose small, well-tested functions with
 automatic error handling. Any error simply bypasses the rest of the operations
 in a transform chain.
+
+Transform's internal function interfaces are just your value types and errors.
+Data exchanged with a transforming process requires a Result type for error
+checking. Check the tests for examples.
