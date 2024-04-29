@@ -96,7 +96,7 @@ func TestStream(t *testing.T) {
 // cpu: AMD Ryzen 7 7840U w/ Radeon 780M Graphics
 // BenchmarkStream/vanilla_unbuffered_channel-16         12110923   96.22 ns/op  0 B/op  0 allocs/op
 // BenchmarkStream/Stream-sourced_unbuffered_channel-16  12515575   97.38 ns/op  0 B/op  0 allocs/op
-// BenchmarkStream/vanilla_10k_buffered_channel-16       58020580   20.79 ns/op  0 B/op  0 allocs/op
+// BenchmarkStream/vanilla_1k_buffered_channel-16        58020580   20.79 ns/op  0 B/op  0 allocs/op
 // BenchmarkStream/Stream-sourced_channel-16             56895408   20.69 ns/op  0 B/op  0 allocs/op
 // BenchmarkStream/vanilla_channel_with_select-16        35377322   33.66 ns/op  0 B/op  0 allocs/op
 // BenchmarkStream/Stream-sourced_channel_with_select-16 35859765   33.93 ns/op  0 B/op  0 allocs/op

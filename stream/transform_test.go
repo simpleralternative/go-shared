@@ -27,7 +27,7 @@ func jsonMarshaller(_ context.Context, input []Row) ([]byte, error) {
 }
 
 func jsonUnmarshaller[T any](_ context.Context, input []byte) (T, error) {
-	data := *new(T)
+	var data T
 	err := json.Unmarshal(input, &data)
 	return data, err
 }
