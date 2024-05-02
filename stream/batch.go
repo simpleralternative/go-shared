@@ -20,7 +20,7 @@ func Batch[T any](
 		var acc []T
 		for result := range input {
 			if result.Error != nil {
-				output <- NewResult(*new([]T), result.Error)
+				output <- NewResult[[]T](nil, result.Error)
 			} else {
 				if len(acc) >= batchSize {
 					select {
