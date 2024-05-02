@@ -43,6 +43,9 @@ Transform's internal function interfaces are just your value types and errors.
 Data exchanged with a transforming process requires a Result type for error
 checking. Check the tests for examples.
 
+### batching
+Many iterative workloads can have improved performance by batching the data. 
+
 ## the argument AGAINST channels
 Channels and goroutines are not free. Go's compile time call-site inlining makes
 simple loops increadibly fast. You might be able to do 10_000_000_000 iterations
