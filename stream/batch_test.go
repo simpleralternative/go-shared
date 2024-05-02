@@ -2,6 +2,7 @@ package stream
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -120,6 +121,30 @@ func TestBatch(t *testing.T) {
 		require.Equal(t, &Result[[]int]{[]int{9, 10}, nil}, output)
 
 		output, ok = <-batched
+		require.False(t, ok)
+		require.Nil(t, output)
+	})
+
+	t.Run("error", func(t *testing.T) {
+		grouping := 2
+		err := errors.New("generic error")
+		src := Stream(func(_ context.Context, output chan<- *Result[int]) {
+			output <- NewResult(1, nil)
+			output <- NewResult(2, nil)
+			output <- NewResult(3, nil)
+			output <- NewResult(0, err)
+			output <- NewResult(4, nil)
+			output <- NewResult(5, nil)
+			output <- NewResult(6, nil)
+		})
+		batched := Batch(src, grouping)
+
+		require.Equal(t, &Result[[]int]{[]int{1, 2}, nil}, <-batched)
+		require.Equal(t, &Result[[]int]{nil, err}, <-batched)
+		require.Equal(t, &Result[[]int]{[]int{3, 4}, nil}, <-batched)
+		require.Equal(t, &Result[[]int]{[]int{5, 6}, nil}, <-batched)
+
+		output, ok := <-batched
 		require.False(t, ok)
 		require.Nil(t, output)
 	})
