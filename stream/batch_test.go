@@ -132,7 +132,7 @@ func TestBatch(t *testing.T) {
 			output <- NewResult(1, nil)
 			output <- NewResult(2, nil)
 			output <- NewResult(3, nil)
-			output <- NewResult(0, err)
+			output <- NewResult(0, errors.Join(err, errors.New("wrapper")))
 			output <- NewResult(4, nil)
 			output <- NewResult(5, nil)
 			output <- NewResult(6, nil)
@@ -140,7 +140,10 @@ func TestBatch(t *testing.T) {
 		batched := Batch(src, grouping)
 
 		require.Equal(t, &Result[[]int]{[]int{1, 2}, nil}, <-batched)
-		require.Equal(t, &Result[[]int]{nil, err}, <-batched)
+		result := <-batched
+		require.Nil(t, result.Value)
+		require.True(t, errors.Is(result.Error, err))
+		// require.Equal(t, &Result[[]int]{nil, err}, <-batched)
 		require.Equal(t, &Result[[]int]{[]int{3, 4}, nil}, <-batched)
 		require.Equal(t, &Result[[]int]{[]int{5, 6}, nil}, <-batched)
 

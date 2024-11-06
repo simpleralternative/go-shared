@@ -17,24 +17,24 @@ func Batch[T any](
 	opts ...Option,
 ) <-chan *Result[[]T] {
 	return Stream(func(ctx context.Context, output chan<- *Result[[]T]) {
-		var acc []T
+		var accumulator []T
 		for result := range input {
 			if result.Error != nil {
 				output <- NewResult[[]T](nil, result.Error)
 			} else {
-				if len(acc) >= batchSize {
+				if len(accumulator) >= batchSize {
 					select {
 					case <-ctx.Done():
 						return
-					case output <- NewResult(acc, nil):
+					case output <- NewResult(accumulator, nil):
 					}
-					acc = nil
+					accumulator = nil
 				}
-				acc = append(acc, result.Value)
+				accumulator = append(accumulator, result.Value)
 			}
 		}
-		if len(acc) > 0 {
-			output <- NewResult(acc, nil)
+		if len(accumulator) > 0 {
+			output <- NewResult(accumulator, nil)
 		}
 	}, opts...)
 }

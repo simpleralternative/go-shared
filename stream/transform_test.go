@@ -21,50 +21,58 @@ type Row struct {
 	Phone string
 }
 
-// example library of transforms
+// an example library of simple transforms that defer to the library to handle
+// most of the traditional housekeeping.
+
 func jsonMarshaller(_ context.Context, input []Row) ([]byte, error) {
-	return json.Marshal(input)
+	return Trace(json.Marshal(input))
 }
 
 func jsonUnmarshaller[T any](_ context.Context, input []byte) (T, error) {
 	var data T
 	err := json.Unmarshal(input, &data)
-	return data, err
+	return Trace(data, err)
 }
 
 func gzipEncoder(_ context.Context, input []byte) ([]byte, error) {
 	var buf bytes.Buffer
 	writer := gzip.NewWriter(&buf)
-	_, err := writer.Write(input)
-	writer.Close()
-	return buf.Bytes(), err
+	_, writeErr := writer.Write(input)
+	// note: syntactically, you could inline the writer.Close in the
+	// errors.Join, but it will be executed /after/ the buffer.Bytes call,
+	// likely returning incomplete data.
+	closeErr := writer.Close()
+	return Trace(buf.Bytes(), errors.Join(writeErr, closeErr))
 }
 
 func gzipDecoder(_ context.Context, input []byte) (io.ReadCloser, error) {
-	return gzip.NewReader(bytes.NewReader(input))
+	return Trace(gzip.NewReader(bytes.NewReader(input)))
 }
 
+// fileReplacer demonstrates a library function pattern with injectable
+// configuration.
 func fileReplacer(
 	filename string,
 ) func(_ context.Context, input []byte) (int, error) {
+	// return conforming lambda with filename closure
 	return func(_ context.Context, input []byte) (int, error) {
 		if err := os.MkdirAll(path.Dir(filename), 0777); err != nil {
-			return 0, err
+			return Trace(0, err)
 		}
 
 		file, err := os.Create(filename)
 		if err != nil {
-			return 0, err
+			return Trace(0, err)
 		}
 		defer file.Close()
 
-		return file.Write(input)
+		return Trace(file.Write(input))
 	}
 }
 
 func readAndClose(_ context.Context, input io.ReadCloser) ([]byte, error) {
 	defer input.Close()
-	return io.ReadAll(input)
+	return Trace(io.ReadAll(input))
 }
 
 // end library
