@@ -1,8 +1,6 @@
 package stream
 
-import (
-	"context"
-)
+import "context"
 
 // Transform composes a providing channel with a premptive error check and a
 // function that performs any action on a value and returns the result.
