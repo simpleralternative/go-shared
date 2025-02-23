@@ -15,9 +15,9 @@ func Transform[T, U any](
 	return Stream(func(ctx context.Context, output chan<- *Result[U]) {
 		for result := range input {
 			if result.Error != nil {
-				output <- NewResult[U](*new(U), result.Error)
+				output <- NewResult(*new(U), result.Error)
 			} else {
-				output <- NewResult[U](transform(ctx, result.Value))
+				output <- NewResult(transform(ctx, result.Value))
 			}
 		}
 	}, opts...)

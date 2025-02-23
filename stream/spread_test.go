@@ -87,7 +87,7 @@ func TestSpread(t *testing.T) {
 		require.Equal(t, NewResult(2, nil), <-unbatched)
 		require.Equal(t, NewResult(3, nil), <-unbatched)
 
-		require.Equal(t, NewResult[int](0, err), <-unbatched)
+		require.Equal(t, NewResult(0, err), <-unbatched)
 
 		require.Equal(t, NewResult(4, nil), <-unbatched)
 		require.Equal(t, NewResult(5, nil), <-unbatched)
