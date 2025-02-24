@@ -13,7 +13,7 @@ func Trace[T any](value T, err error) (T, error) {
 		_, file, line, _ := runtime.Caller(1)
 		return value, errors.Join(
 			err,
-			errors.New(fmt.Sprintf("stream.Trace - %s:%d", file, line)),
+			fmt.Errorf("stream.Trace - %s:%d", file, line),
 		)
 	}
 
