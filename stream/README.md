@@ -51,8 +51,8 @@ Channels and goroutines are not free. Go's compile time call-site inlining makes
 simple loops increadibly fast. You might be able to do 10_000_000_000 iterations
 in a pure, nearly empty `for` loop but "only" a few tens of millions of
 iterations over a channel per second. This package impacts them further by
-requiring the use of a Result wrapper and doing error checking in the
-transformers.
+requiring the use of a Result wrapper while doing row-by-row error and
+done-signal checking in the transformers.
 
 So why would you ever use channels, let alone Stream? What makes them worth
 considering?
@@ -70,6 +70,10 @@ executed in parallel, trading a tiny amount of channel and goroutine overhead
 for potentially large performance gains with no additional programming effort
 required.
 
+This package automates channel concurrency ceremonies to reduce errors. Channels
+are automatically closed, errors are automatically forwarded down the stream,
+and error handling can be consolidated.
+
 ### pipelining
 Very few processes will have no cost beyond the loop itself. A unit of work that
 takes 1 second will completely negate that extremely fast iterator. Pipelining
@@ -78,12 +82,12 @@ can be processed at the same time. If the system is not allowed to be parallel,
 the same code will behave as well as the direct loop, but if it can we gain the
 benefits of parallelism with identical code.
 
-A simple example would be if that 1 second of work was 5 steps that each took
-0.2 seconds. The single-threaded case is straightforward with or without
+A simple example would be if that 5 second of work was 5 steps that each took
+1 seconds. The single-threaded case is straightforward with or without
 concurrency:
 ```
-unit 1: a(0.2) + b(0.2) + c(0.2) + d(0.2) + e(0.2) = 1s
-unit 2: a(0.2) + b(0.2) + c(0.2) + d(0.2) + e(0.2) = 1s
+unit 1: a(1) + b(1) + c(1) + d(1) + e(1) = 5s
+unit 2: a(1) + b(1) + c(1) + d(1) + e(1) = 5s
 ...
 ```
 
@@ -93,11 +97,11 @@ with the working data exchanged over channels. The process looks the same for
 that a single unit, but as the first unit finishes the first subprocess, a
 second unit of work can be started while the first unit moves on.
 ```
-unit 1: a(0.2) + b(0.2) + c(0.2) + d(0.2) + e(0.2)
-unit 2:          a(0.2) + b(0.2) + c(0.2) + d(0.2) + e(0.2)
-unit 3:                   a(0.2) + b(0.2) + c(0.2) + d(0.2) + e(0.2)
-unit 4:                            a(0.2) + b(0.2) + c(0.2) + d(0.2) + e(0.2)
-unit 5:                                     a(0.2) + b(0.2) + c(0.2) + d(0.2) + e(0.2)
+unit 1: a(1) + b(1) + c(1) + d(1) + e(1)
+unit 2:        a(1) + b(1) + c(1) + d(1) + e(1)
+unit 3:               a(1) + b(1) + c(1) + d(1) + e(1)
+unit 4:                      a(1) + b(1) + c(1) + d(1) + e(1)
+unit 5:                             a(1) + b(1) + c(1) + d(1) + e(1)
 ...
 ```
 
@@ -112,11 +116,11 @@ distribute work at any stage.
 In the previous example, if the work in each subprocess is not dependent on the
 previous, we could split that work and do them all that the same time.
 ```
-                     a(0.2)
-                     b(0.2)
-unit 1: distribute < c(0.2) > multiplex = 0.2s
-                     d(0.2)
-                     e(0.2)
+                     a(1)
+                     b(1)
+unit 1: distribute < c(1) > multiplex = 1s
+                     d(1)
+                     e(1)
 ```
 
 In most cases, you'd use a combination. A stream is initiated where some source
