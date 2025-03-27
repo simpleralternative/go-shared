@@ -149,10 +149,11 @@ func TestFold(t *testing.T) {
 				output <- NewResult("e", nil)
 			},
 		)
-		ctx, _ := context.WithDeadline(
+		ctx, cancel := context.WithDeadline(
 			context.Background(),
 			time.Now().Add(time.Second),
 		)
+		defer cancel()
 
 		total, err := Fold(
 			data,
