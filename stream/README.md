@@ -1,135 +1,49 @@
 # stream
-This package provides simple helpers that enforce safe, concurrent data flow
-patterns. It does not aim to be the ultimate in performance and is on the edge
-of being too clever via generics and function returns. It intends to simplify
-expressing data flows in our own processes and handles real-world use cases that
-we have repeatedly encountered. There is no magic. Your project can do all of
-these things without this package, and there are examples in the tests.
+This is the short version. The reasoning and rationals for why you might want to
+use this package is provided in [README-rationale.md](README-rationale.md).
 
-A side effect of the model is that most steps are reduced to small, easily
-testable components.
+Everything in this package is about adding convenience to standard Go channels.
+You can use Stream to generate one, or start with your own, then use any of the
+library functions to process that channel and consume it directly or via another
+library function.
 
-### producer-consumer conventions
-A producer should own the lifetime of a channel. All channel-source functions
-return an output-only channel, and also close it when data has been exhausted
-or a cancellation signal is received. This prevents any scenario where other
-code causes an error by sending a value to a closed channel.
+Channels do add some overhead, and this library adds extra overhead with
+built-in sanity checks and other library boilerplate, but if you're using
+channels, this can help you standardize the way you interact with them and
+minimize footguns for minimal performance impact. 
 
-A consumer will simply read values from a channel until signaled to stop. Both a
-`for value := range channel` and the second form of equals
-`value, ok := <- channel` can be used to safely recognise when the channel has
-been closed, indicating there is no more work to do.
+### install
+`> go get github.com/simpleralternative/go-shared/stream`
 
-### configuration by "functional options"
-This model enables simple runtime configuration of a process. Each function has
-a reasonable default configuration and a set of matching options that modify its
-behaviour.
+### very basic usage
+```go
+// provides control: you can add values, cancel signals, and deadlines.
+outerCtx := context.Background()
 
-### fan-out, fan-in
-When a data stream benefits from being processed in parallel, then you can
-distribute the contents across multiple channels and work on them in parallel.
+// Stream creates, backgrounds, and automatically closes the channel when done.
+results := stream.Stream(
+    // this could also be a named function that you use as a component.
+    func(ctx context.Context, output <-chan *result.Result[myStruct]) {
+        // any kind of data generation process. database, file, etc.
+        for range 1000 {
+            // provide as many or as few results as needed
+            output <- stream.NewResult(makeMyStruct(ctx), nil)
+            // Trace adds a wrapping error with this callsite noted.
+            output <- stream.NewResult(myStruct{}, stream.Trace(ErrMine))
+        }
+    },
+    // an optional configuration. by default a generic context is passed in.
+    WithContext(outerCtx), 
+)
 
-Parallel data sources or processes are often combined into a single process for
-downstream consumption. The multiplexer consolidates multiple channels to a
-single channel for further processing.
+parallel := stream.Distribute(results, 5)
+processed := stream.Process(parallel, processingFunctionFromMyLibrary)
+serial := stream.Multiplex(processed)
 
-### transform
-The Transform function extends the paradigm by using pure channels to embrace
-Railway Oriented Programming. We can compose small, well-tested functions with
-automatic error handling. Any error simply bypasses the rest of the operations
-in a transform chain.
-
-Transform's internal function interfaces are just your value types and errors.
-Data exchanged with a transforming process requires a Result type for error
-checking. Check the tests for examples.
-
-### batching
-Many iterative workloads can have improved performance by batching the data. 
-
-## the argument AGAINST channels
-Channels and goroutines are not free. Go's compile time call-site inlining makes
-simple loops increadibly fast. You might be able to do 10_000_000_000 iterations
-in a pure, nearly empty `for` loop but "only" a few tens of millions of
-iterations over a channel per second. This package impacts them further by
-requiring the use of a Result wrapper while doing row-by-row error and
-done-signal checking in the transformers.
-
-So why would you ever use channels, let alone Stream? What makes them worth
-considering?
-
-## the argument FOR channels
-"Concurrency is not parallelism." Concurrency is structuring the code so that
-the individual processes can be thought of as independent, using signals to
-receive and transmit work. Breaking the code up into easy to understand and
-validate components makes code much easier to make correct and maintainable.
-
-Whether channel-based processes run serially, or in parallel, is then a matter
-of environment. If it is able, by the presense of a capable system and enabled
-by configuration, then concurrent processes will automatically begin to be
-executed in parallel, trading a tiny amount of channel and goroutine overhead
-for potentially large performance gains with no additional programming effort
-required.
-
-This package automates channel concurrency ceremonies to reduce errors. Channels
-are automatically closed, errors are automatically forwarded down the stream,
-and error handling can be consolidated.
-
-### pipelining
-Very few processes will have no cost beyond the loop itself. A unit of work that
-takes 1 second will completely negate that extremely fast iterator. Pipelining
-is using concurrency to logically divide the work so that different parts of it
-can be processed at the same time. If the system is not allowed to be parallel,
-the same code will behave as well as the direct loop, but if it can we gain the
-benefits of parallelism with identical code.
-
-A simple example would be if that 5 second of work was 5 steps that each took
-1 seconds. The single-threaded case is straightforward with or without
-concurrency:
-```
-unit 1: a(1) + b(1) + c(1) + d(1) + e(1) = 5s
-unit 2: a(1) + b(1) + c(1) + d(1) + e(1) = 5s
-...
+for _, value := range serial {
+    mine, err := value.Destructure()
+    // etc
+}
 ```
 
-With concurrency and a parallel-capable environment, you could pipeline the
-process so that each of those 5 steps was processed by a different goroutine,
-with the working data exchanged over channels. The process looks the same for
-that a single unit, but as the first unit finishes the first subprocess, a
-second unit of work can be started while the first unit moves on.
-```
-unit 1: a(1) + b(1) + c(1) + d(1) + e(1)
-unit 2:        a(1) + b(1) + c(1) + d(1) + e(1)
-unit 3:               a(1) + b(1) + c(1) + d(1) + e(1)
-unit 4:                      a(1) + b(1) + c(1) + d(1) + e(1)
-unit 5:                             a(1) + b(1) + c(1) + d(1) + e(1)
-...
-```
-
-By the end of the first second, the first unit of work has completed as normal,
-but 4 other processes are in flight and the average throughput is now 5/s with
-no further code changes.
-
-### parallelism
-As shown above, concurrency can enable pipelining, but we can also divide and
-distribute work at any stage.
-
-In the previous example, if the work in each subprocess is not dependent on the
-previous, we could split that work and do them all that the same time.
-```
-                     a(1)
-                     b(1)
-unit 1: distribute < c(1) > multiplex = 1s
-                     d(1)
-                     e(1)
-```
-
-In most cases, you'd use a combination. A stream is initiated where some source
-of data is iterated over - query result, file contents, etc - and results are
-sent to be worked downstream.
-
-eg:
-```
-                    read file contents     extract data
-iterate file list < read file contents > < extract data > accumulate and batch insert to sql
-                    read file contents     extract data
-```
+Consult the rationale and tests for more.

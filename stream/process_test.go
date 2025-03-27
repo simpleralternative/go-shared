@@ -10,11 +10,15 @@ import (
 )
 
 func TestProcess(t *testing.T) {
-	srcChannels := Distribute(Stream(func(_ context.Context, output chan<- *Result[int]) {
-		for i := range 100 {
-			output <- NewResult(i, nil)
-		}
-	}), 2, WithBufferSize(0))
+	srcChannels := Distribute(
+		Stream(func(_ context.Context, output chan<- *Result[int]) {
+			for i := range 100 {
+				output <- NewResult(i, nil)
+			}
+		}),
+		2,
+		WithBufferSize(0),
+	)
 
 	destChannels := Processor(
 		srcChannels,
