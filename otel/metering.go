@@ -19,7 +19,7 @@ const (
 	MetricMethodHTTP
 )
 
-type MetricOptions struct {
+type MeterConfiguration struct {
 	Method     MetricMethod
 	Stdout     []stdoutmetric.Option
 	Grpc       []otlpmetricgrpc.Option
@@ -29,24 +29,28 @@ type MetricOptions struct {
 
 func SetupMetrics(
 	ctx context.Context,
-	options MetricOptions,
+	configuration *MeterConfiguration,
 	shutdownFuncs *ShutdownFuncs,
 	res *resource.Resource,
 ) (*metric.MeterProvider, error) {
+	if configuration == nil {
+		return nil, ErrConfigurationRequired
+	}
+
 	var metricExporter metric.Exporter
 	var err error
-	if options.Method == MetricMethodStdout {
-		metricExporter, err = stdoutmetric.New(options.Stdout...)
+	if configuration.Method == MetricMethodStdout {
+		metricExporter, err = stdoutmetric.New(configuration.Stdout...)
 		if err != nil {
 			return nil, err
 		}
-	} else if options.Method == MetricMethodGRPC {
-		metricExporter, err = otlpmetricgrpc.New(ctx, options.Grpc...)
+	} else if configuration.Method == MetricMethodGRPC {
+		metricExporter, err = otlpmetricgrpc.New(ctx, configuration.Grpc...)
 		if err != nil {
 			return nil, err
 		}
-	} else if options.Method == MetricMethodHTTP {
-		metricExporter, err = otlpmetrichttp.New(ctx, options.Http...)
+	} else if configuration.Method == MetricMethodHTTP {
+		metricExporter, err = otlpmetrichttp.New(ctx, configuration.Http...)
 		if err != nil {
 			return nil, err
 		}
@@ -56,12 +60,13 @@ func SetupMetrics(
 		metric.WithReader(
 			metric.NewPeriodicReader(
 				metricExporter,
-				metric.WithInterval(options.BatchTimer),
+				metric.WithInterval(configuration.BatchTimer),
 			),
 		),
 		metric.WithResource(res),
 	), nil
 
+	shutdownFuncs.append(meterProvider.ForceFlush)
 	shutdownFuncs.append(meterProvider.Shutdown)
 	return meterProvider, nil
 }

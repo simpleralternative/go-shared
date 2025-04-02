@@ -19,7 +19,7 @@ const (
 	TracingMethodHTTP
 )
 
-type TracerOptions struct {
+type TracerConfiguration struct {
 	Method     TracingMethod
 	Stdout     []stdouttrace.Option
 	Grpc       []otlptracegrpc.Option
@@ -29,37 +29,38 @@ type TracerOptions struct {
 
 func SetupTracing(
 	ctx context.Context,
-	options TracerOptions,
+	configuration *TracerConfiguration,
 	shutdownFuncs *ShutdownFuncs,
 	res *resource.Resource,
 ) (*trace.TracerProvider, error) {
-	// it might be useful to be able to send outputs to multiple streams.
-	// sadly, not today.
+	if configuration == nil {
+		return nil, ErrConfigurationRequired
+	}
 
 	var traceExporter trace.SpanExporter
 	var err error
-	if options.Method == TracingMethodStdout {
-		traceExporter, err = stdouttrace.New(options.Stdout...)
+	if configuration.Method == TracingMethodStdout {
+		traceExporter, err = stdouttrace.New(configuration.Stdout...)
 		if err != nil {
 			return nil, err
 		}
-	} else if options.Method == TracingMethodGRPC {
-		traceExporter, err = otlptracegrpc.New(ctx, options.Grpc...)
+	} else if configuration.Method == TracingMethodGRPC {
+		traceExporter, err = otlptracegrpc.New(ctx, configuration.Grpc...)
 		if err != nil {
 			return nil, err
 		}
-	} else if options.Method == TracingMethodHTTP {
-		traceExporter, err = otlptracehttp.New(ctx, options.Http...)
+	} else if configuration.Method == TracingMethodHTTP {
+		traceExporter, err = otlptracehttp.New(ctx, configuration.Http...)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	var batchOptions []trace.BatchSpanProcessorOption
-	if options.BatchTimer > 0 {
+	if configuration.BatchTimer > 0 {
 		batchOptions = append(
 			batchOptions,
-			trace.WithBatchTimeout(options.BatchTimer),
+			trace.WithBatchTimeout(configuration.BatchTimer),
 		)
 	}
 	tracerProvider := trace.NewTracerProvider(
@@ -69,6 +70,8 @@ func SetupTracing(
 		),
 		trace.WithResource(res),
 	)
+
+	shutdownFuncs.append(tracerProvider.ForceFlush)
 	shutdownFuncs.append(tracerProvider.Shutdown)
 	return tracerProvider, nil
 }

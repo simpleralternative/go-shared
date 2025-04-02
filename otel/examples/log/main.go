@@ -16,7 +16,7 @@ func main() {
 	sdf := &otel.ShutdownFuncs{}
 	logProvider, err := otel.SetupLogging(
 		ctx,
-		otel.LoggerOptions{
+		&otel.LoggerConfiguration{
 			Method: otel.LoggingMethodStdout,
 			Stdout: []stdoutlog.Option{stdoutlog.WithPrettyPrint()},
 		},
@@ -28,11 +28,9 @@ func main() {
 		),
 	)
 	if err != nil {
-		defer sdf.Shutdown(ctx)
+		panic(err)
 	}
-	// the batch processor is async, on a timer, so we need to wait for output
-	// or force it
-	defer logProvider.ForceFlush(ctx)
+	defer sdf.Shutdown(ctx)
 
 	logger := slog.New(
 		otelslog.NewHandler(

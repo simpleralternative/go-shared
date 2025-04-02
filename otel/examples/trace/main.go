@@ -15,7 +15,7 @@ func main() {
 	sdf := &otel.ShutdownFuncs{}
 	tracerProvider, err := otel.SetupTracing(
 		ctx,
-		otel.TracerOptions{
+		&otel.TracerConfiguration{
 			Method:     otel.TracingMethodStdout,
 			Stdout:     []stdouttrace.Option{stdouttrace.WithPrettyPrint()},
 			BatchTimer: 10 * time.Millisecond, // unrealistically short
@@ -28,10 +28,9 @@ func main() {
 		),
 	)
 	if err != nil {
-		defer sdf.Shutdown(ctx)
+		panic(err)
 	}
-	// solve the async send problem
-	defer tracerProvider.ForceFlush(ctx)
+	defer sdf.Shutdown(ctx)
 
 	tracer := tracerProvider.Tracer("main")
 	_, span := tracer.Start(ctx, "example")

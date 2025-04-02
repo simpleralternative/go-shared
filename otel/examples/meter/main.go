@@ -14,7 +14,7 @@ func main() {
 	sdf := &otel.ShutdownFuncs{}
 	metricProvider, err := otel.SetupMetrics(
 		ctx,
-		otel.MetricOptions{
+		&otel.MeterConfiguration{
 			Method: otel.MetricMethodStdout,
 			Stdout: []stdoutmetric.Option{stdoutmetric.WithPrettyPrint()},
 			// BatchTimer: 5 * time.Second, // default 5s
@@ -27,10 +27,9 @@ func main() {
 		),
 	)
 	if err != nil {
-		defer sdf.Shutdown(ctx)
+		panic(err)
 	}
-	// prevent async issues
-	defer metricProvider.ForceFlush(ctx)
+	defer sdf.Shutdown(ctx)
 
 	metric := metricProvider.Meter("main")
 	counter, err := metric.Int64Counter("counter")
