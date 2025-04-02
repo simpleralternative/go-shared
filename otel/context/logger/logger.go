@@ -2,7 +2,9 @@ package logger
 
 import (
 	"context"
+	"log/slog"
 
+	"go.opentelemetry.io/contrib/bridges/otelslog"
 	"go.opentelemetry.io/otel/log"
 	"go.opentelemetry.io/otel/log/global"
 )
@@ -25,4 +27,13 @@ func Get(ctx context.Context) log.LoggerProvider {
 		return global.GetLoggerProvider()
 	}
 	return lgr
+}
+
+func Wrap(logProvider log.LoggerProvider, name string) *slog.Logger {
+	return slog.New(
+		otelslog.NewHandler(
+			name,
+			otelslog.WithLoggerProvider(logProvider),
+		),
+	)
 }

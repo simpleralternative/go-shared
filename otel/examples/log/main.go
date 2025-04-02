@@ -2,10 +2,9 @@ package main
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/simpleralternative/go-shared/otel"
-	"go.opentelemetry.io/contrib/bridges/otelslog"
+	"github.com/simpleralternative/go-shared/otel/context/logger"
 	"go.opentelemetry.io/otel/exporters/stdout/stdoutlog"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
@@ -32,11 +31,6 @@ func main() {
 	}
 	defer sdf.Shutdown(ctx)
 
-	logger := slog.New(
-		otelslog.NewHandler(
-			"main",
-			otelslog.WithLoggerProvider(logProvider),
-		),
-	)
-	logger.ErrorContext(ctx, "some content to send")
+	mainLogger := logger.Wrap(logProvider, "main")
+	mainLogger.ErrorContext(ctx, "some content to send")
 }
