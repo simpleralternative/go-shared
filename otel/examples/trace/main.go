@@ -41,6 +41,7 @@ func main() {
 	time.Sleep(1 * time.Second)
 	span.AddEvent("end")
 
-	// manually triggering End safely closes the span now and the defer is noop
+	// manually triggering End closes the span early
+	// and the defer is safely noop
 	span.End()
 }
